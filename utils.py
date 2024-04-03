@@ -1,5 +1,6 @@
 from rouge_score import rouge_scorer
 from nltk.tokenize import sent_tokenize
+import numpy as np
 def rouge(reference, candidate, types=['rouge1', 'rouge2', 'rougeL', 'rougeLsum'], use_stemmer=True,
           split_summaries=True):
     """

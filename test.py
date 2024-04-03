@@ -19,6 +19,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=42, help='random seed for initialization')
     parser.add_argument('--save_path', type=str, default='save/', help='path for saving the final model')
     parser.add_argument('--gpu', type=str, default='3', help='GPU ID to use. [default: 0]')
+    parser.add_argument('--doc_max_timesteps', type=int, default=50, help='max length of documents (max timesteps of documents)')
     args = parser.parse_args()
 
     _, _, (test_loader, test_dataset) = load_data_summarization(batch_size=args.batch_size)
@@ -42,19 +43,22 @@ if __name__ == '__main__':
             outputs = outputs.view(-1, 2)
             target = target.view(-1)
             loss = criterion(outputs, target)
-            loss = loss.reshape(args.batch_size, -1).sum(-1).mean()
+            loss = loss.reshape(-1, args.doc_max_timesteps).sum(-1).mean()
             test_loss += float(loss.data)
 
-    test_loss = test_loss / len(eval_loader)
-    print("Test loss: ", eval_loss)
+    test_loss = test_loss / len(test_loader)
+    print("Test loss: ", test_loss)
     target_label = torch.vstack(target_label)
     hyps = []
     refs = []
     for index, article in enumerate(test_dataset):
         targets = torch.nonzero(target_label[index] == 1).squeeze()
-        hyp = "\n".join(article['article_sens'][target] for target in targets)
+        if targets.dim() == 0:
+            targets = targets.unsqueeze(0)
+        hyp = "\n".join(article[1]['article_sens'][target.item()] for target in targets if target.item() < len(article[1]['article_sens']))
         hyps.append(hyp)
-        refs.append(article['summary'])
+        ref = "\n".join(article[1]['summary'])
+        refs.append(ref)
     scores_all = rouge_corpus(refs, hyps)
     res = "Rouge1:\n\tp:%.6f, r:%.6f, f:%.6f\n" % (
         scores_all['rouge1']['precision'], scores_all['rouge1']['recall'], scores_all['rouge1']['fmeasure']) \

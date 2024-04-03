@@ -21,6 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_path', type=str, default='log/', help='path for saving the log')
     parser.add_argument('--save_path', type=str, default='save/', help='path for saving the final model')
     parser.add_argument('--gpu', type=str, default='3', help='GPU ID to use. [default: 0]')
+    parser.add_argument('--doc_max_timesteps', type=int, default=50,help='max length of documents (max timesteps of documents)')
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -55,7 +56,7 @@ if __name__ == '__main__':
             outputs = outputs.view(-1, 2)
             target = label.view(-1)
             loss = criterion(outputs, target)
-            loss = loss.reshape(args.batch_size, -1).sum(-1).mean()
+            loss = loss.reshape(-1, args.doc_max_timesteps).sum(-1).mean()
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(Classifier.parameters(), args.max_grad_norm)
@@ -65,7 +66,7 @@ if __name__ == '__main__':
             if i_batch % 100 == 0:
                 print('       | end of iter {:3d} | time: {:5.2f}s | train loss {:5.4f} | '
                       .format(i_batch, (time.time() - iter_start_time), float(train_loss / 100)))
-                writer.add_scalar('training_loss', float(train_loss / 100), i_batch//100)
+                writer.add_scalar('training_loss', float(train_loss / 100), i_batch // 100)
                 train_loss = 0.0
         epoch_avg_loss = epoch_loss / len(train_loader)
         logger.info('   | end of epoch {:3d} | time: {:5.2f}s | epoch train loss {:5.4f} | '
@@ -87,7 +88,7 @@ if __name__ == '__main__':
                 outputs = outputs.view(-1, 2)
                 target = target.view(-1)
                 loss = criterion(outputs, target)
-                loss = loss.reshape(args.batch_size, -1).sum(-1).mean()
+                loss = loss.reshape(-1, args.doc_max_timesteps).sum(-1).mean()
                 eval_loss += float(loss.data)
 
         eval_loss = eval_loss / len(eval_loader)
@@ -100,9 +101,12 @@ if __name__ == '__main__':
         refs = []
         for index, article in enumerate(tqdm(eval_dataset)):
             targets = torch.nonzero(target_label[index] == 1).squeeze()
-            hyp = "\n".join(article['article_sens'][target] for target in targets)
+            if targets.dim() == 0:
+                targets = targets.unsqueeze(0)
+            hyp = "\n".join(article[1]['article_sens'][target] for target in targets if target.item() < len(article[1]['article_sens']))
             hyps.append(hyp)
-            refs.append(article['summary'])
+            ref = "\n".join(article[1]['summary'])
+            refs.append(ref)
         scores_all = rouge_corpus(refs, hyps)
         res = "Rouge1:\n\tp:%.6f, r:%.6f, f:%.6f\n" % (
             scores_all['rouge1']['precision'], scores_all['rouge1']['recall'], scores_all['rouge1']['fmeasure']) \

@@ -1,7 +1,8 @@
 from sentence_transformers import SentenceTransformer
 from transformers import BertTokenizer, BertModel, AutoTokenizer
 from torch.utils.data import DataLoader, Dataset
-from datasets import load_dataset
+from datasets import load_dataset, DatasetDict
+import datasets
 import numpy as np
 import torch
 class Summarization_Dataset(Dataset):
@@ -80,6 +81,12 @@ def load_data_summarization(batch_size, doc_max_timesteps=50, data_name='cnn',
         train_data = load_dataset('json', data_files={'data': ['data/CNNDM/train.label.jsonl']})
         eval_data = load_dataset('json', data_files={'data': ['data/CNNDM/val.label.jsonl']})
         test_data = load_dataset('json', data_files={'data': ['data/CNNDM/test.label.jsonl']})
+    '''
+    可选，进行子数据集挑选，方便debug
+    '''
+    test_data = DatasetDict({
+        'data': datasets.Dataset.from_dict(test_data['data'][:100])
+    })
     trainDateset = Summarization_Dataset(dataset=train_data, doc_max_timesteps=doc_max_timesteps, sent_encoder_type=sent_encoder_type, summary_type=summary_type,
                                summary_level=summary_level)
     evalDateset = Summarization_Dataset(dataset=eval_data, doc_max_timesteps=doc_max_timesteps,
