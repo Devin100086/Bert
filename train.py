@@ -3,6 +3,7 @@ from model import classifier
 import time
 import os
 import torch
+import datetime
 from tqdm import tqdm
 import random
 import numpy as np
@@ -64,12 +65,14 @@ if __name__ == '__main__':
             train_loss += float(loss.data)
             epoch_loss += float(loss.data)
             if i_batch % 100 == 0:
-                print('       | end of iter {:3d} | time: {:5.2f}s | train loss {:5.4f} | '
-                      .format(i_batch, (time.time() - iter_start_time), float(train_loss / 100)))
+                current_time = datetime.datetime.now()
+                current_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+                print('| time {} | end of iter {:3d} | time: {:5.2f}s | train loss {:5.4f} | '
+                      .format(current_time,i_batch, (time.time() - iter_start_time), float(train_loss / 100)))
                 writer.add_scalar('training_loss', float(train_loss / 100), i_batch // 100)
                 train_loss = 0.0
         epoch_avg_loss = epoch_loss / len(train_loader)
-        logger.info('   | end of epoch {:3d} | time: {:5.2f}s | epoch train loss {:5.4f} | '
+        print('| time {} | end of epoch {:3d} | time: {:5.2f}s | epoch train loss {:5.4f} | '
                     .format(epoch, (time.time() - epoch_start_time), float(epoch_avg_loss)))
 
         print("Starting eval for this model ...")
